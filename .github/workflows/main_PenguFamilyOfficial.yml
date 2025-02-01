@@ -23,14 +23,14 @@ jobs:
       uses: docker/login-action@v2
       with:
         registry: https://mcr.microsoft.com/
-        username: ${{ secrets.AzureAppService_ContainerUsername_d20155ed8f164558b61e440f27a9beee }}
-        password: ${{ secrets.AzureAppService_ContainerPassword_be805a8a23144bc4b70c9aeea942bf63 }}
+        username: ${{ secrets.AzureAppService_ContainerUsername_619bb298c6a24572a25b77ad68fc663e }}
+        password: ${{ secrets.AzureAppService_ContainerPassword_50d3ee1cc06c4af78a203072905b3e6c }}
 
     - name: Build and push container image to registry
       uses: docker/build-push-action@v3
       with:
         push: true
-        tags: mcr.microsoft.com/${{ secrets.AzureAppService_ContainerUsername_d20155ed8f164558b61e440f27a9beee }}/appsvc/staticsite:${{ github.sha }}
+        tags: mcr.microsoft.com/${{ secrets.AzureAppService_ContainerUsername_619bb298c6a24572a25b77ad68fc663e }}/appsvc/staticsite:${{ github.sha }}
         file: ./Dockerfile
 
   deploy:
@@ -47,5 +47,5 @@ jobs:
       with:
         app-name: 'PenguFamilyOfficial'
         slot-name: 'production'
-        publish-profile: ${{ secrets.AzureAppService_PublishProfile_54917e54ed0e43f187a55edfe8dbc8e2 }}
-        images: 'mcr.microsoft.com/${{ secrets.AzureAppService_ContainerUsername_d20155ed8f164558b61e440f27a9beee }}/appsvc/staticsite:${{ github.sha }}'
+        publish-profile: ${{ secrets.AzureAppService_PublishProfile_62fa5766e2dd4fe29e5e0da8a68f80a8 }}
+        images: 'mcr.microsoft.com/${{ secrets.AzureAppService_ContainerUsername_619bb298c6a24572a25b77ad68fc663e }}/appsvc/staticsite:${{ github.sha }}'
