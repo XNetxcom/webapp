@@ -1,7 +1,7 @@
 // Import necessary modules
 const { Connection, clusterApiUrl, Keypair, PublicKey, sendAndConfirmTransaction, Transaction } = require('@solana/web3.js');
-const { getAssociatedTokenAddress, createAssociatedTokenAccountInstruction, getAccountInfo, getAccount } = require('@solana/spl-token');
-const bs58 = require('bs58');
+const { getAssociatedTokenAddress, createAssociatedTokenAccountInstruction, getAccount } = require('@solana/spl-token');
+const bs58 = require('bs58'); // <--- THIS IS THE ONLY IMPORT FOR BS58.
 
 /**
  * Initializes and returns a new Connection to Mainnet-beta.
@@ -18,16 +18,38 @@ function initializeConnection() {
  * @throws {Error} If the private key is invalid.
  */
 function loadKeypairFromPrivateKey(privateKeyB58) {
-  try {
-    const privateKeyBytes = bs58.decode(privateKeyB58);
-    if (privateKeyBytes.length !== 64) {
-      throw new Error('Invalid private key length. Expected 64 bytes.');
+    // Keypair is available from the top-level import.
+
+    if (!privateKeyB58) {
+        throw new Error('Private key string is empty or undefined.');
     }
-    return Keypair.fromSecretKey(privateKeyBytes);
-  } catch (error) {
-    console.error('Failed to load keypair from private key:', error);
-    throw new Error(`Invalid private key: ${error.message}`);
-  }
+    if (typeof privateKeyB58 !== 'string') {
+        throw new Error('Private key must be a string.');
+    }
+
+    try {
+        // Ensure bs58 is required at the top of the file as: const bs58 = require('bs58');
+        if (!bs58.default || typeof bs58.default.decode !== 'function') {
+            throw new Error('bs58.default.decode is not a function. Check bs58 library installation and version.');
+        }
+        const privateKeyBytes = bs58.default.decode(privateKeyB58);
+
+        // The spec asks to ensure Keypair.fromSecretKey uses the Keypair from the top-level import.
+        // The original code already does this correctly.
+        // We also need to ensure the privateKeyBytes are of the correct length (64 bytes for a secret key)
+        if (privateKeyBytes.length !== 64) {
+          throw new Error('Invalid private key length after decoding. Expected 64 bytes.');
+        }
+        return Keypair.fromSecretKey(privateKeyBytes);
+    } catch (error) {
+        console.error('Error decoding private key or creating keypair:', error.message);
+        // Add more context to the error if bs58.decode specifically fails
+        // Updated error check to align with the new bs58.default.decode usage
+        if (error.message.includes('bs58.default.decode is not a function') || error.message.includes('decode')) {
+             throw new Error(`Failed to decode private key with bs58.default.decode. Error: ${error.message}`);
+        }
+        throw new Error(`Invalid private key: ${error.message}`);
+    }
 }
 
 /**
@@ -38,10 +60,9 @@ function loadKeypairFromPrivateKey(privateKeyB58) {
  * @param {string} tokenMintAddress - The Base58 string of the token mint's public key.
  * @returns {Promise<object>} An object containing the ATA address, status ('exists' or 'created'),
  *                            and signature (if created), or an error object.
- *                            Example success: { address: "...", signature: "...", status: "created" }
- *                            Example error: { error: true, message: "...", details?: any }
  */
 async function getOrCreateAssociatedTokenAccount(connection, payerKeypair, tokenMintAddress) {
+  // PublicKey, getAssociatedTokenAddress etc. are available from top-level imports.
   let tokenMintPublicKey;
   try {
     tokenMintPublicKey = new PublicKey(tokenMintAddress);
@@ -63,25 +84,20 @@ async function getOrCreateAssociatedTokenAccount(connection, payerKeypair, token
 
   try {
     // Check if account already exists
-    const accountInfo = await getAccount(connection, ataAddress);
+    // getAccount is imported from @solana/spl-token
+    await getAccount(connection, ataAddress);
     // If getAccount doesn't throw, the account exists
     return { address: ataAddress.toBase58(), signature: null, status: 'exists' };
   } catch (error) {
     // Handle TokenAccountNotFoundError (or similar errors indicating account not found)
-    // The specific error name/type can vary based on the @solana/spl-token version and Solana RPC node behavior.
-    // It's often a generic error with a message like "Account does not exist" or "Could not find account"
-    // or a specific error like 'TokenAccountNotFoundError' if the library throws it.
-    // For this example, we'll check for common error message patterns or specific error names if available.
     const accountNotFoundErrorMessages = [
         "Account does not exist",
         "could not find account",
         "TokenAccountNotFoundError",
-        "Invalid param: could not find account" // Example from some RPCs
+        "Invalid param: could not find account"
     ];
 
-    // Check if the error message or type indicates that the account was not found.
-    // This is a common way to check since specific error types might not always be available or consistent.
-    const isNotFoundError = error.name === 'TokenAccountNotFoundError' || 
+    const isNotFoundError = error.name === 'TokenAccountNotFoundError' ||
                            (error.message && accountNotFoundErrorMessages.some(msg => error.message.includes(msg)));
 
     if (isNotFoundError) {
@@ -116,8 +132,9 @@ async function getOrCreateAssociatedTokenAccount(connection, payerKeypair, token
   }
 }
 
+// Make sure to export the functions:
 module.exports = {
-  initializeConnection,
-  loadKeypairFromPrivateKey,
-  getOrCreateAssociatedTokenAccount,
+    initializeConnection,
+    loadKeypairFromPrivateKey,
+    getOrCreateAssociatedTokenAccount
 };
