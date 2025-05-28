@@ -1,5 +1,6 @@
 // Import necessary modules
 const { Connection, clusterApiUrl, Keypair, PublicKey, sendAndConfirmTransaction, Transaction } = require('@solana/web3.js');
+const TOKEN_2022_PROGRAM_ID = new PublicKey('TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpLQtRect'); // Corrected Token 2022 Program ID
 const { getAssociatedTokenAddress, createAssociatedTokenAccountInstruction, getAccount } = require('@solana/spl-token');
 const bs58 = require('bs58'); // <--- THIS IS THE ONLY IMPORT FOR BS58.
 
@@ -54,6 +55,7 @@ function loadKeypairFromPrivateKey(privateKeyB58) {
 
 /**
  * Gets an existing Associated Token Account (ATA) or creates it if it doesn't exist.
+ * This function now supports Token 2022.
  *
  * @param {Connection} connection - The Solana Connection object.
  * @param {Keypair} payerKeypair - The Keypair of the account that will pay for the transaction and own the ATA.
@@ -73,9 +75,12 @@ async function getOrCreateAssociatedTokenAccount(connection, payerKeypair, token
 
   let ataAddress;
   try {
+    // Updated to include TOKEN_2022_PROGRAM_ID
     ataAddress = await getAssociatedTokenAddress(
       tokenMintPublicKey,
-      payerKeypair.publicKey
+      payerKeypair.publicKey,
+      false, // allowOwnerOffCurve
+      TOKEN_2022_PROGRAM_ID // Pass the Token 2022 Program ID
     );
   } catch (error) {
     console.error('Failed to get associated token address:', error);
@@ -85,7 +90,9 @@ async function getOrCreateAssociatedTokenAccount(connection, payerKeypair, token
   try {
     // Check if account already exists
     // getAccount is imported from @solana/spl-token
-    await getAccount(connection, ataAddress);
+    // For Token-2022, the account check might need to consider the program ID if getAccount defaults to TOKEN_PROGRAM_ID
+    // However, getAccount itself should work if the ATA address is correctly derived for Token-2022.
+    await getAccount(connection, ataAddress, undefined, TOKEN_2022_PROGRAM_ID); // Pass program ID to getAccount
     // If getAccount doesn't throw, the account exists
     return { address: ataAddress.toBase58(), signature: null, status: 'exists' };
   } catch (error) {
@@ -102,32 +109,49 @@ async function getOrCreateAssociatedTokenAccount(connection, payerKeypair, token
 
     if (isNotFoundError) {
       // Account does not exist, proceed to create it
-      console.log(`ATA ${ataAddress.toBase58()} for mint ${tokenMintAddress} and owner ${payerKeypair.publicKey.toBase58()} does not exist. Creating it...`);
+      console.log(`ATA ${ataAddress.toBase58()} for mint ${tokenMintAddress} (Token-2022) and owner ${payerKeypair.publicKey.toBase58()} does not exist. Creating it...`);
       try {
-        const transaction = new Transaction().add(
-          createAssociatedTokenAccountInstruction(
-            payerKeypair.publicKey, // Payer
-            ataAddress,             // Associated token account address
-            payerKeypair.publicKey, // Owner of the new account
-            tokenMintPublicKey      // Token mint
-          )
+        // Fetch latest blockhash (Blockhash logic is present)
+        const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+
+        const transaction = new Transaction({
+            feePayer: payerKeypair.publicKey,
+            blockhash: blockhash, // Assign the fetched blockhash
+            lastValidBlockHeight: lastValidBlockHeight, // Assign the last valid block height
+        }).add(
+            // Updated to include TOKEN_2022_PROGRAM_ID
+            createAssociatedTokenAccountInstruction(
+                payerKeypair.publicKey, // payer
+                ataAddress,             // ata
+                payerKeypair.publicKey, // owner
+                tokenMintPublicKey,     // mint
+                TOKEN_2022_PROGRAM_ID   // token program id
+            )
         );
 
-        const signature = await sendAndConfirmTransaction(
-          connection,
-          transaction,
-          [payerKeypair] // Signers
-        );
-        console.log(`ATA created successfully. Signature: ${signature}`);
+        const signature = await sendAndConfirmTransaction(connection, transaction, [payerKeypair]);
+        console.log(`ATA (Token-2022) created successfully. Signature: ${signature}`);
         return { address: ataAddress.toBase58(), signature, status: 'created' };
       } catch (creationError) {
-        console.error(`Failed to create ATA ${ataAddress.toBase58()}:`, creationError);
-        return { error: true, message: `Failed to create ATA: ${creationError.message}`, details: creationError };
+        console.error('Failed to create ATA (Token-2022):', creationError);
+        // It's good to check if creationError has more details like logs
+        if (creationError.logs) {
+            console.error("Transaction Logs:", creationError.logs);
+        }
+        if (creationError.getLogs) { // For SendTransactionError
+             try {
+                const logs = await creationError.getLogs(connection);
+                console.error("Transaction Logs (from getLogs):", logs);
+             } catch (logError) {
+                console.error("Error fetching logs:", logError);
+             }
+        }
+        return { error: true, message: `Failed to create ATA (Token-2022): ${creationError.message}`, details: creationError };
       }
     } else {
       // Some other error occurred when trying to fetch the account
-      console.error(`Error checking for ATA ${ataAddress.toBase58()}:`, error);
-      return { error: true, message: `Error checking ATA: ${error.message}`, details: error };
+      console.error(`Error checking for ATA (Token-2022) ${ataAddress.toBase58()}:`, error);
+      return { error: true, message: `Error checking ATA (Token-2022): ${error.message}`, details: error };
     }
   }
 }

@@ -1,13 +1,15 @@
 # Solana ATA Creation Telegram Bot
 
-This Telegram bot listens for Solana token mint addresses and automatically creates (or confirms existence of) the Associated Token Account (ATA) for that token using a pre-configured wallet.
+**IMPORTANT: This bot is configured exclusively for creating Associated Token Accounts (ATAs) for SPL Token 2022 mints. It uses the standard Token 2022 Program ID: `TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpLQtRect`. It will not work correctly for original SPL Token mints.**
+
+This Telegram bot listens for Solana **Token 2022** mint addresses and automatically creates (or confirms existence of) the Associated Token Account (ATA) for that token using a pre-configured wallet.
 
 **NETWORK: SOLANA MAINNET-BETA**
 
 ## Features
 
-*   Receives token mint addresses via Telegram messages.
-*   Derives and creates the Associated Token Account (ATA) if it doesn't exist.
+*   Receives **Token 2022** token mint addresses via Telegram messages.
+*   Derives and creates the Associated Token Account (ATA) if it doesn't exist, specifically for **Token 2022**.
 *   Informs if the ATA already exists.
 *   Uses a Solana wallet (specified by a private key in a `.env` file) to pay for transaction fees and own the ATAs.
 *   Provides feedback directly in the Telegram chat, including transaction links on Solscan.
@@ -55,7 +57,7 @@ This Telegram bot listens for Solana token mint addresses and automatically crea
 
 2.  **Interact with the Bot:**
     *   Open Telegram and find your bot.
-    *   Send it a valid Solana token mint address (Base58 string).
+    *   Send it a valid Solana **Token 2022** token mint address (Base58 string).
     *   The bot will respond with the status of the ATA creation.
 
 ## !! IMPORTANT SECURITY WARNINGS !!
@@ -72,5 +74,6 @@ This Telegram bot listens for Solana token mint addresses and automatically crea
 
 *   **"Missing TELEGRAM_BOT_TOKEN or SOLANA_PRIVATE_KEY_B58"**: Ensure your `.env` file is correctly named, in the root project directory, and contains the required variables.
 *   **"Failed to load payer keypair"**: Double-check that `SOLANA_PRIVATE_KEY_B58` in your `.env` file is a correct Base58 private key.
+*   **Incorrect Token Type**: Ensure you are providing a **Token 2022** mint address. The bot will not work correctly with original SPL token mints.
 *   **Insufficient Funds**: If the bot fails to create ATAs, ensure the bot's wallet has enough SOL for transaction fees.
 *   **Telegram Bot Errors (`polling_error`)**: Check your internet connection and ensure your `TELEGRAM_BOT_TOKEN` is correct and the bot is not being run in multiple places simultaneously with polling.
